@@ -1,0 +1,157 @@
+#include "simpletools.h"
+
+ #include "servo.h"
+ #include "ping.h"  
+ #include "servodiffdrive.h"
+#include "fdserial.h"
+
+#define PIN_SOUND       26 // pin for the speaker, default=26
+#define PIN_XBEE_RX      0
+#define PIN_XBEE_TX      1
+#define PIN_SERVO_LEFT  14
+#define PIN_SERVO_RIGHT 15 
+
+
+char char2lowercase (char c);    
+
+ int main(){
+  fdserial *xbee;
+	xbee = fdserial_open(PIN_XBEE_RX, PIN_XBEE_TX, 0, 9600);
+	drive_pins(PIN_SERVO_LEFT, PIN_SERVO_RIGHT);
+ 
+   pause(1000);
+	putchar(CLS);
+	fdserial_rxFlush(xbee);
+ 
+  servo_speed(18,0); //initialize at stationary speed=0
+  servo_speed(19,0);
+  while (1) {
+		int ch = fdserial_rxChar(xbee);
+		ch = char2lowercase(ch);
+		fdserial_rxFlush(xbee); 
+		
+     int t ;            //current light
+     int i;              
+     int j;
+     int r;         //max light
+     int k=0;           //random   
+     int cmDist; 
+     int l=50;
+     int m=30;
+     int n;
+     switch ((char) ch) {
+       case 'f':
+       r=100;
+          print("first time running\n");
+          print("max light = %d\n", 100-r);  
+          for(j=0;j<30;j++){
+           for(i=1;i<=5;i++){
+             cmDist= ping_cm(15);                 // Get cm distance from Ping)))
+             if(cmDist <10 ){
+                printf("alarm\n");
+                k++;
+                while(1){
+                  servo_speed(18,l); //initialize at stationary speed=0
+                  servo_speed(19,m);
+                  high(5);
+                  t = rc_time(5, 1);                    // Measure decay time on P5
+                  if(t<r){
+                  r=t;
+                  print("max light = %d\n", 100-r);
+                }       
+                  pause(1000);
+                  cmDist= ping_cm(15); 
+                  if(cmDist >= 15) break;
+                }
+              }
+                                  
+              else {
+                servo_speed(18,50); //run at speed = 50 for 2s
+                servo_speed(19,-50);
+                high(5);
+                t = rc_time(5, 1);                    // Measure decay time on P5
+                if(t<r){
+                  r=t;
+                  print("max light = %d\n", 100-r);
+                }                  
+                pause(100);
+                }
+              if(k==5){
+                n=l;
+                l=m*(-1);
+                m=n*(-1);
+                k=0;
+              }   
+              pause(1);
+                
+             }
+          }
+          servo_stop();
+          freqout(9, 1000, 3000);                     // pin, duration, frequency
+          print("max light = %d\n", 100-r);
+          if(r>50) print("too small!\n");
+          break;
+      case 's':
+      print("second time running\n");
+      print("max light = %d\n", 100-r);    
+         while(1){
+            cmDist= ping_cm(15);                 // Get cm distance from Ping)))
+            high(5);                                  // Set P5 high
+            if(cmDist < 10){
+              printf("alarm\n");
+              k++;
+              while(1){
+                servo_speed(18,l); //initialize at stationary speed=0
+                servo_speed(19,m);
+                high(5);
+                t = rc_time(5, 1);                    // Measure decay time on P5
+                if(t<=(r+5)) break;
+                pause(1000);
+                cmDist= ping_cm(15); 
+                if(cmDist >= 15) break;
+                }
+              }
+           else {
+              servo_speed(18,50); //run at speed = 50 for 2s
+              servo_speed(19,-50);
+              high(5);
+              t = rc_time(5, 1);                    // Measure decay time on P5
+              if(t<=(r+5)) break;
+              pause(100);
+              }
+              if(t<=(r+5)) break;
+              pause(1);
+             if(k==5){
+                n=l;
+                l=m*(-1);
+                m=n*(-1);
+                k=0;
+              }      
+            }
+          
+        
+          servo_stop();
+          freqout(9, 1000, 3000); 
+          print("max light = %d\n", 100-r);
+          print("current light = %d\n", 100-t);
+          print("place available\n");
+          break;
+          
+      default:
+				print("Invalid Command\n");
+				pause(700);
+				break;    
+          }
+  		//print("%c", (char) ch);
+		pause(100);
+		fdserial_txChar(xbee, ch);
+		fdserial_txFlush(xbee);
+      }
+   }     
+  char char2lowercase (char c) {
+	return 'A'<=c && c<='Z' ? c+32 : c;
+}
+                   
+    
+
+
